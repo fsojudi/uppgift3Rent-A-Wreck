@@ -1,0 +1,24 @@
+--SQL(SEQUEL)
+
+
+
+
+
+CREATE DATABASE RentAWreck
+GO
+
+USE RentAWreck
+GO
+
+--DROP TABLE Vehicle
+
+
+CREATE TABLE Vehicle(
+	Id INT IDENTITY,
+	Brand  NVARCHAR(50) NOT NULL,
+	Model NVARCHAR(50) NOT NULL,
+	Type INT,
+	RegistrationNumber NVARCHAR(10) NOT NULL
+	PRIMARY KEY(Id),
+	UNIQUE(RegistrationNumber)
+)

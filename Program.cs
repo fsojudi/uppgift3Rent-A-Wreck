@@ -1,128 +1,268 @@
-﻿using static System.Console;
+﻿
+using Microsoft.Data.SqlClient;
+using RentAWreck.Domain;
+using static System.Console;
+
+namespace RentAWreck;
 
 
-CursorVisible = false;
-bool isrunnig = true;
-Title = "Menu";
 
-
-var carsList = new List<Car>();
-
-
-do
+class program
 {
-    WriteLine("1 . Registera fordon");
-    WriteLine("2 . Lista fordon");
-    WriteLine("3 . Avsluta");
-
-    ConsoleKeyInfo keypressed = ReadKey(intercept: true);
-    Clear();
-
-    switch (keypressed.Key)
+    static string connectionString = " Server=.; Database=RentAWreck;Integrated Security=true; Encrypt=False";
+    static void Main()
     {
-        case ConsoleKey.D1:
-        case ConsoleKey.NumPad1:
+        CursorVisible = false;
+        Title = "Rent-A-Wreck";
 
-            Write("Märke: " ); 
-            string newBrand = ReadLine();
-           
+        while (true)
+        {
+            WriteLine("1. Registrera fordon");
+            WriteLine("2. Lista fordon");
+            WriteLine("3. Sök fordon");
+            WriteLine("4. Avsluta");
 
-            Write("Modell: " );
-            string newModel=ReadLine();
-  
-            Write("Typ: "); 
-            string stringType=ReadLine();
-            Type enumType;
-             bool isCorrect = true;
-            while (isCorrect=false)
-            {
-                if (Enum.TryParse(stringType, out Type newType))
-                {
-                    enumType = newType;
-                }
-                else
-                {
-                    WriteLine("ejgiltig");
-                    isCorrect = false;
-                }
+            var keyPressed = ReadKey(intercept: true);
 
-            }
-            Write("RegistrationNumber: ");
-            string newRegistrationNumber=ReadLine();
-
-            Car newCar = new Car(
-                brand: newBrand,
-                model: newModel,
-                type: newType,
-                registrationNumber: newRegistrationNumber
-                );
-
-            carsList.Add(newCar);
-
-            ReadKey();
-            Clear();
-            break;
-
-        case ConsoleKey.D2:
-        case ConsoleKey.NumPad2:
-
-            WriteLine("Märke" + "      " +
-                "Modell" + "      " +
-                 "Typ" + "      " +
-                 "RegistrationNumber" + "      ");
-
-            for (global::System.Int32 i = 0; i < 60; i++)
-            {
-                Write("-");
-            }
-
-            WriteLine("\n ");
-
-            foreach (Car car in carsList)
-            {  
-                WriteLine(car.brand+"      "+
-                  car.model + "      "+
-                  car.type + "      "+
-                  car.registrationNumber + "      ");
-            }
-
-            ReadKey();
             Clear();
 
-            break;
+            switch (keyPressed.Key)
+            {
+                case ConsoleKey.D1:
+                case ConsoleKey.NumPad1:
 
-        case ConsoleKey.D3:
-        case ConsoleKey.NumPad3:
+                    RegisterVehicle();
 
-            Environment.Exit(0);
+                    break;
 
-            return;
+                case ConsoleKey.D2:
+                case ConsoleKey.NumPad2:
+
+                    ListVehicles();
+
+                    break;
+
+                case ConsoleKey.D3:
+                case ConsoleKey.NumPad3:
+
+                    SearchVehicle();
+
+                    break;
+
+                case ConsoleKey.D4:
+                case ConsoleKey.NumPad4:
+
+                    Environment.Exit(0);
+
+                    return;
+            }
+
+            Clear();
+        }
+
     }
 
-    Clear();
-
-} while (isrunnig);
-public enum Type
-{
-    suv,
-    sedan,
-    kombi
-}
-class Car
-{
-    public string brand;
-    public string model;
-    public Type type;
-    public string registrationNumber;
 
 
 
-
-    public Car(string brand, string model, Type type, string registrationNumber)
+    
+    private static void RegisterVehicle()
     {
-        this.brand = brand;
-        this.model = model;
-        this.type = type;
-        this.registrationNumber = registrationNumber;
+        Write("Märke: ");
+
+        string brand = ReadLine();
+
+        Write("Model: ");
+
+        string model = ReadLine();
+
+        Write("Typ: ");
+
+        VehicleType type = Enum.Parse<VehicleType>(ReadLine(), true);
+
+        Write("Registreringsnummer: ");
+
+        string registrationNumber = ReadLine();
+
+        Clear();
+
+        var vehicle = new Vehicle
+        {
+            Brand = brand,
+            Model = model,
+            Type = type,
+            RegistrationNumber = registrationNumber
+        };
+
+        SaveVehicle(vehicle);
+
+        WriteLine("Fordon registrerat");
+
+        Thread.Sleep(2000);
     }
+
+    private static void SaveVehicle(Vehicle vehicle)
+    {
+        //INSERT INTO
+        string sql = @"
+        INSERT INTO Vehicle(
+        Brand, 
+        Model, 
+        Type,
+        RegistrationNumber)
+        VALUES(
+        @Brand,
+        @Model,
+        @Type,
+        @RegistrationNumber)";
+
+        using var connection = new SqlConnection(connectionString);
+
+        using var command = new SqlCommand(sql, connection);
+
+        command.Parameters.AddWithValue("@Brand", vehicle.Brand);
+        command.Parameters.AddWithValue("@Model", vehicle.Model);
+        command.Parameters.AddWithValue("@Type", (int) vehicle.Type);
+        command.Parameters.AddWithValue("@RegistrationNumber",  vehicle.RegistrationNumber);
+
+        connection.Open();
+
+        command.ExecuteNonQuery();
+
+        connection.Close(); 
+
+
+
+    }
+
+    private static void SearchVehicle()
+    {
+        Write("Registreringsnummer: ");
+
+        string registrationNumber = ReadLine();
+
+        Clear();
+
+        var vehicle = SearchVehicle(registrationNumber);
+         
+        if (vehicle is not null)
+        {
+            WriteLine($"Märke: {vehicle.Brand}");
+            WriteLine($"Model: {vehicle.Model}");
+            WriteLine($"Typ: {vehicle.Type}");
+            WriteLine($"RegistreringsNummer: {vehicle.RegistrationNumber}");
+
+            WaitUntilKeyPressed(ConsoleKey.Escape);
+        }
+        else
+        {
+            WriteLine("Fordon finns ej");
+
+            Thread.Sleep(2000);
+        }
+    }
+
+    private static Vehicle? SearchVehicle(string registrationNumber)
+    {
+
+        var sql = @"
+            SELECT Brand ,
+                   Model,
+                   type,
+                   RegistrationNumber
+            FROM Vehicle  
+            WHERE RegistrationNumber= @RegistrationNumber
+";
+        using var connection = new SqlConnection(connectionString);
+        using var command = new SqlCommand(sql, connection);
+
+        command.Parameters.AddWithValue("@RegistrationNumber", registrationNumber);
+
+        connection.Open();
+
+        var reader = command.ExecuteReader();
+
+        Vehicle vehicle = null;
+        if (reader.Read())
+        {
+            vehicle = new Vehicle 
+            {
+
+                Brand = reader["Brand"].ToString(),
+                Model = reader["Model"].ToString(),
+                Type = (VehicleType)reader["Type"],
+                RegistrationNumber = reader["RegistrationNumber"].ToString(),
+
+            };
+        }
+
+        connection.Close();
+        return vehicle;
+    }
+
+    private static void ListVehicles()
+    {
+        Write($"{"Märke",-10}");
+        Write($"{"Modell",-10}");
+        Write($"{"Typ",-10}");
+        WriteLine("Registreringsnummer");
+
+        WriteLine(new string('-', 60));
+
+        var vehicles = FetchVehicle();
+
+        foreach (var vehicle in vehicles)
+        {
+            Write($"{vehicle.Brand,-10}");
+            Write($"{vehicle.Model,-10}");
+            Write($"{vehicle.Type,-10}");
+            WriteLine(vehicle.RegistrationNumber);
+        }
+
+        WaitUntilKeyPressed(ConsoleKey.Escape);
+    }
+
+    private static IEnumerable<Vehicle> FetchVehicle()
+    {
+        var vehicles = new List<Vehicle>();
+
+        var sql = @"
+            SELECT Brand ,
+                   Model,
+                   type,
+                   RegistrationNumber
+            FROM Vehicle  
+";
+        using var connection = new SqlConnection(connectionString);
+        using var command = new SqlCommand(sql, connection);
+
+        connection.Open();
+
+        var reader= command.ExecuteReader();
+
+        while (reader.Read())
+        {
+            var vehicle = new Vehicle()
+            {
+
+                Brand = reader["Brand"].ToString(),
+                Model = reader["Model"].ToString(),
+                Type = (VehicleType) reader["Type"],
+                RegistrationNumber = reader["RegistrationNumber"].ToString(),
+
+            };
+            vehicles.Add(vehicle);
+
+        }
+        connection.Close();
+        return vehicles;
+    }
+
+    private static void WaitUntilKeyPressed(ConsoleKey key)
+    {
+        while (ReadKey(true).Key != ConsoleKey.Escape) ;
+    }
+
+
+
 }
